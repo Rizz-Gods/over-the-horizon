@@ -1,0 +1,722 @@
+import json
+import os
+import re
+import sqlite3
+import subprocess
+import uuid
+import urllib.request
+from contextlib import contextmanager
+from http.server import BaseHTTPRequestHandler, ThreadingHTTPServer
+from pathlib import Path
+
+from .core.console_store import ConsoleStore
+from .core.mission_state import MissionStateStore
+from .core.pilot import PilotPlanner
+from .core.kernel import OTHKernel
+
+ROOT = Path(__file__).resolve().parents[1]
+STORE = ConsoleStore(ROOT / "data" / "console.db")
+WEB_ROOT = ROOT / "console"
+
+def model_config():
+    base = os.getenv("OTH_MODEL_BASE_URL", "").strip().rstrip("/")
+    key = os.getenv("OTH_MODEL_API_KEY", "")
+    name = os.getenv("OTH_MODEL_NAME", "").strip()
+    if not base:
+        try:
+            proc = subprocess.run(
+                [
+                    "wsl.exe", "-d", "Arch", "--", "bash", "-lc",
+                    "ip -4 -o addr show eth0 | sed -n 's/.*inet \\([0-9.]*\\)\\/.*/\\1/p'",
+                ],
+                capture_output=True,
+                text=True,
+                timeout=5,
+                check=False,
+            )
+            ip = next(
+                (
+                    line.strip()
+                    for line in proc.stdout.splitlines()
+                    if re.fullmatch(r"\d+(?:\.\d+){3}", line.strip())
+                ),
+                "",
+            )
+            if ip:
+                base = f"http://{ip}:11434/v1"
+        except Exception:
+            pass
+    if not base:
+        base = "http://127.0.0.1:11434/v1"
+    if not name:
+        name = "auto"
+    return base, key, name
+
+def call_model(messages):
+    base, key, name = model_config()
+    if name == "auto":
+        models_url = base + "/models"
+        try:
+            req = urllib.request.Request(models_url, headers={"Accept": "application/json"})
+            with urllib.request.urlopen(req, timeout=2) as resp:
+                data = json.loads(resp.read().decode("utf-8"))
+            models = [item.get("id") for item in data.get("data", []) if item.get("id")]
+            if not models:
+                return None
+            name = models[0]
+        except Exception:
+            return None
+    payload = json.dumps({
+        "model": name,
+        "messages": messages,
+        "temperature": 0.2,
+    }).encode("utf-8")
+    headers = {"Content-Type": "application/json"}
+    if key:
+        headers["Authorization"] = f"Bearer {key}"
+    try:
+        req = urllib.request.Request(base + "/chat/completions", data=payload, headers=headers, method="POST")
+        with urllib.request.urlopen(req, timeout=180) as resp:
+            data = json.loads(resp.read().decode("utf-8"))
+        return data["choices"][0]["message"]["content"]
+    except Exception:
+        return None
+
+MISSION_PREFIXES = (
+    "build ", "create ", "implement ", "develop ", "fix ", "repair ",
+    "set up ", "setup ", "configure ", "continue ", "run ", "deploy ",
+    "automate ", "design ", "make ", "add ", "remove ", "refactor ",
+    "execute ", "finish ", "work on ",
+)
+
+EXECUTE_EXISTING = (
+    "execute the mission",
+    "execute mission",
+    "do the mission",
+    "continue the mission",
+    "continue with the mission",
+    "finish the mission",
+)
+
+def is_mission(text: str) -> bool:
+    lowered = text.strip().lower()
+    return lowered.startswith(MISSION_PREFIXES) or lowered in EXECUTE_EXISTING
+
+def resolve_mission(conversation_id: str, text: str) -> str:
+    lowered = text.strip().lower()
+    if lowered not in EXECUTE_EXISTING:
+        return text.strip()
+    history = STORE.messages(conversation_id, 80)
+    for item in reversed(history):
+        if item["role"] != "user":
+            continue
+        candidate = item["content"].strip()
+        if candidate and candidate.lower() not in EXECUTE_EXISTING:
+            return candidate
+    return text.strip()
+
+def queue_mission(conversation_id: str, text: str):
+    planner = PilotPlanner()
+    preview = planner.plan(text)
+    mission_store = MissionStateStore(ROOT / "data" / "console.db")
+    mission_id = str(uuid.uuid4())
+    mission_store.create(
+        conversation_id,
+        preview.goal,
+        preview.strategy,
+        mission_id=mission_id,
+    )
+    kernel = OTHKernel(ROOT)
+    try:
+        plan = planner.submit(
+            kernel,
+            text,
+            {
+                "mission_id": mission_id,
+                "conversation_id": conversation_id,
+            },
+        )
+        mission_store.attach_root_tasks(mission_id, plan["root_task_ids"])
+        return {
+            "queued": True,
+            "mission_id": mission_id,
+            "goal": plan["goal"],
+            "strategy": plan["strategy"],
+            "root_task_ids": plan["root_task_ids"],
+            "task_count": plan["task_count"],
+        }
+    except Exception as exc:
+        mission_store.update_from_task(
+            mission_id,
+            "",
+            "failed",
+            {"error": str(exc)},
+            task_db=ROOT / "data" / "oth.db",
+        )
+        raise
+    finally:
+        kernel.close()
+        mission_store.close()
+
+def pilot_fallback(text: str):
+    planner = PilotPlanner()
+    try:
+        result = planner.plan(text)
+        return (
+            "OTH received the mission.\n\n"
+            f"Goal: {result.goal}\n"
+            f"Strategy: {result.strategy}\n"
+            f"Tasks: {len(result.tasks)}"
+        )
+    except Exception:
+        return (
+            "OTH received and permanently stored this message. "
+            "No model provider is configured yet; the local mission console is online."
+        )
+
+@contextmanager
+def console_singleton():
+    pid_path = ROOT / "data" / "oth-console.pid"
+    pid_path.parent.mkdir(parents=True, exist_ok=True)
+    pid = os.getpid()
+    try:
+        existing = int(pid_path.read_text(encoding="utf-8").strip())
+        os.kill(existing, 0)
+        yield False
+        return
+    except Exception:
+        pass
+    pid_path.write_text(str(pid), encoding="utf-8")
+    try:
+        yield True
+    finally:
+        try:
+            if pid_path.read_text(encoding="utf-8").strip() == str(pid):
+                pid_path.unlink()
+        except OSError:
+            pass
+
+class StrictHTTPServer(ThreadingHTTPServer):
+    allow_reuse_address = False
+
+
+class Handler(BaseHTTPRequestHandler):
+    server_version = "OTHConsole/0.1"
+
+    def log_message(self, *_):
+        return
+
+    def json_response(self, status, payload):
+        raw = json.dumps(payload, ensure_ascii=False).encode("utf-8")
+        self.send_response(status)
+        self.send_header("Content-Type", "application/json; charset=utf-8")
+        self.send_header("Content-Length", str(len(raw)))
+        self.end_headers()
+        self.wfile.write(raw)
+
+    def do_GET(self):
+        if self.path == "/api/status":
+            base, _, name = model_config()
+            self.json_response(200, {
+                "ok": True,
+                "console": "online",
+                "storage": str(STORE.path),
+                "model_base": base,
+                "model": name,
+                "stats": STORE.stats(),
+            })
+            return
+        if self.path == "/api/conversations":
+            self.json_response(200, {"items": STORE.list_conversations()})
+            return
+        if self.path.startswith("/api/conversations/") and self.path.endswith("/mission"):
+            conversation_id = self.path.split("/")[3]
+            STORE.missions.reconcile(ROOT / "data" / "oth.db")
+            missions = STORE.missions.for_conversation(conversation_id)
+            task_db = ROOT / "data" / "oth.db"
+            payload = [
+                {**mission, "graph": STORE.missions.graph_for_mission(mission["id"], task_db)}
+                for mission in missions
+            ]
+            self.json_response(200, {"items": payload})
+            return
+        if self.path.startswith("/api/missions/") and self.path.endswith("/control"):
+            mission_id = self.path.split("/")[3]
+            snapshot = STORE.missions.control_snapshot(
+                mission_id,
+                ROOT / "data" / "oth.db",
+            )
+            if snapshot is None:
+                self.json_response(404, {"error": "mission not found", "mission_id": mission_id})
+                return
+            self.json_response(200, snapshot)
+            return
+        if self.path.startswith("/api/missions/") and self.path.endswith("/timeline"):
+            mission_id = self.path.split("/")[3]
+            items = STORE.missions.timeline_for_mission(
+                mission_id,
+                task_db=ROOT / "data" / "oth.db",
+            )
+            self.json_response(200, {"mission_id": mission_id, "items": items})
+            return
+        if self.path.startswith("/api/missions/") and self.path.endswith("/budget"):
+            mission_id = self.path.split("/")[3]
+            budget = STORE.missions.budget_for_mission(mission_id, ROOT / "data" / "oth.db")
+            if budget is None:
+                self.json_response(404, {"error": "mission not found", "mission_id": mission_id})
+                return
+            self.json_response(200, {"mission_id": mission_id, "budget": budget})
+            return
+        if self.path.startswith("/api/missions/") and self.path.endswith("/integrity"):
+            mission_id = self.path.split("/")[3]
+            integrity = STORE.missions.integrity_for_mission(mission_id, ROOT / "data" / "oth.db")
+            history = STORE.missions.integrity_history(mission_id, limit=50) if integrity else []
+            if integrity is None:
+                self.json_response(404, {"error": "mission not found", "mission_id": mission_id})
+                return
+            self.json_response(200, {"mission_id": mission_id, "integrity": integrity, "history": history})
+            return
+        if self.path.startswith("/api/missions/") and self.path.endswith("/policy"):
+            mission_id = self.path.split("/")[3]
+            policy = STORE.missions.policy_for_mission(mission_id)
+            revisions = STORE.missions.policy_revisions_for_mission(mission_id, limit=100)
+            if policy is None:
+                self.json_response(404, {"error": "mission not found", "mission_id": mission_id})
+                return
+            self.json_response(200, {"mission_id": mission_id, "current": policy, "revisions": revisions})
+            return
+        if self.path.startswith("/api/missions/") and self.path.endswith("/audit"):
+            mission_id = self.path.split("/")[3]
+            mission = STORE.missions.get(mission_id)
+            if mission is None:
+                self.json_response(404, {"error": "mission not found", "mission_id": mission_id})
+                return
+            items = STORE.missions.audit_for_mission(mission_id, limit=100)
+            integrity = STORE.missions.verify_audit_chain(mission_id)
+            self.json_response(200, {
+                "mission_id": mission_id,
+                "items": items,
+                "integrity": integrity,
+            })
+            return
+        if self.path == "/api/audit":
+            mission_id = None
+            query = self.path
+            if "?" in query:
+                mission_id = None
+            items = STORE.missions.list_audit(limit=100, mission_id=mission_id)
+            self.json_response(200, {"items": items, "integrity": STORE.missions.verify_audit_chain()})
+            return
+        if self.path.startswith("/api/missions/") and self.path.endswith("/replay"):
+            mission_id = self.path.split("/")[3]
+            replay = STORE.missions.replay_for_mission(
+                mission_id,
+                ROOT / "data" / "oth.db",
+                limit=500,
+            )
+            if replay is None:
+                self.json_response(404, {"error": "mission not found", "mission_id": mission_id})
+                return
+            self.json_response(200, replay)
+            return
+        if self.path.startswith("/api/missions/") and self.path.endswith("/progress"):
+            mission_id = self.path.split("/")[3]
+            STORE.missions.reconcile(ROOT / "data" / "oth.db")
+            progress = STORE.missions.progress_for_mission(
+                mission_id,
+                ROOT / "data" / "oth.db",
+            )
+            if progress is None:
+                self.json_response(404, {"error": "mission not found", "mission_id": mission_id})
+                return
+            self.json_response(200, {"mission_id": mission_id, "progress": progress})
+            return
+        if self.path == "/api/attention":
+            items = STORE.missions.list_attention(
+                limit=100,
+                include_acknowledged=False,
+            )
+            self.json_response(200, {
+                "items": items,
+                "open_count": len(items),
+            })
+            return
+        if self.path.startswith("/api/missions/") and self.path.endswith("/attention"):
+            mission_id = self.path.split("/")[3]
+            items = STORE.missions.attention_for_mission(
+                mission_id,
+                limit=100,
+                include_acknowledged=False,
+            )
+            self.json_response(200, {
+                "mission_id": mission_id,
+                "items": items,
+                "open_count": len(items),
+            })
+            return
+        if self.path.startswith("/api/conversations/") and self.path.endswith("/messages"):
+            conversation_id = self.path.split("/")[3]
+            self.json_response(200, {"items": STORE.messages(conversation_id)})
+            return
+        if self.path.startswith("/api/tasks/") and self.path.endswith("/graph"):
+            task_id = self.path.split("/")[3]
+            db = sqlite3.connect(ROOT / "data" / "oth.db")
+            db.row_factory = sqlite3.Row
+            root = db.execute("SELECT id FROM tasks WHERE id=?", (task_id,)).fetchone()
+            if not root:
+                db.close()
+                self.json_response(404, {"error": "task not found"})
+                return
+            nodes = {}
+            edges = []
+            frontier = [(task_id, 0)]
+            seen = {task_id}
+            while frontier:
+                current, level = frontier.pop(0)
+                row = db.execute(
+                    "SELECT id, capability, action, status, priority, created_at, updated_at "
+                    "FROM tasks WHERE id=?",
+                    (current,),
+                ).fetchone()
+                if row:
+                    nodes[current] = {**dict(row), "level": level}
+                if level >= 12:
+                    continue
+                children = db.execute(
+                    "SELECT e.child_task_id, e.edge_type FROM task_edges e WHERE e.parent_task_id=?",
+                    (current,),
+                ).fetchall()
+                for child in children:
+                    edges.append({
+                        "parent_task_id": current,
+                        "child_task_id": child["child_task_id"],
+                        "edge_type": child["edge_type"],
+                    })
+                    if child["child_task_id"] not in seen:
+                        seen.add(child["child_task_id"])
+                        frontier.append((child["child_task_id"], level + 1))
+            db.close()
+            self.json_response(200, {"root": task_id, "nodes": list(nodes.values()), "edges": edges})
+            return
+        if self.path.startswith("/api/tasks/"):
+            task_id = self.path.split("/")[3]
+            db = sqlite3.connect(ROOT / "data" / "oth.db")
+            db.row_factory = sqlite3.Row
+            task = db.execute(
+                "SELECT id, capability, action, status, priority, created_at, updated_at "
+                "FROM tasks WHERE id=?",
+                (task_id,),
+            ).fetchone()
+            event = db.execute(
+                "SELECT kind, payload, created_at FROM events "
+                "WHERE task_id=? ORDER BY rowid DESC LIMIT 1",
+                (task_id,),
+            ).fetchone()
+            db.close()
+            if not task:
+                self.json_response(404, {"error": "task not found"})
+                return
+            payload = {}
+            if event:
+                try:
+                    payload = json.loads(event["payload"] or "{}")
+                except Exception:
+                    payload = {"raw": event["payload"]}
+            self.json_response(200, {
+                "task": dict(task),
+                "latest_event": {
+                    "kind": event["kind"],
+                    "created_at": event["created_at"],
+                    "payload": payload,
+                } if event else None,
+            })
+            return
+        if self.path == "/api/mission":
+            mission_path = ROOT / "data" / "pilot_state.json"
+            mission = json.loads(mission_path.read_text(encoding="utf-8")) if mission_path.exists() else {}
+            self.json_response(200, mission)
+            return
+        if self.path in {"/", "/index.html"}:
+            raw = (WEB_ROOT / "index.html").read_bytes()
+            self.send_response(200)
+            self.send_header("Content-Type", "text/html; charset=utf-8")
+            self.send_header("Content-Length", str(len(raw)))
+            self.end_headers()
+            self.wfile.write(raw)
+            return
+        self.send_error(404)
+
+    def read_json(self):
+        length = int(self.headers.get("Content-Length", "0"))
+        return json.loads(self.rfile.read(length).decode("utf-8"))
+
+    def do_POST(self):
+        try:
+            body = self.read_json()
+        except Exception as exc:
+            self.json_response(400, {"error": f"invalid json: {exc}"})
+            return
+
+        if self.path.startswith("/api/missions/") and self.path.endswith("/deadline"):
+            mission_id = self.path.split("/")[3]
+            try:
+                if "deadline_at" not in body:
+                    raise ValueError("deadline_at is required; use null to clear the deadline")
+                result = STORE.missions.set_deadline(
+                    mission_id,
+                    body.get("deadline_at"),
+                )
+            except ValueError as exc:
+                self.json_response(400, {"error": str(exc)})
+                return
+            status = 200 if result.get("status") != "missing" else 404
+            snapshot = STORE.missions.control_snapshot(
+                mission_id,
+                ROOT / "data" / "oth.db",
+            )
+            self.json_response(status, {"result": result, "control": snapshot})
+            return
+
+        if self.path.startswith("/api/missions/") and self.path.endswith("/policy"):
+            mission_id = self.path.split("/")[3]
+            try:
+                result = STORE.missions.set_policy(
+                    mission_id,
+                    external_actions_require_approval=body.get("external_actions_require_approval"),
+                    financial_actions_require_approval=body.get("financial_actions_require_approval"),
+                    cancellation_mode=body.get("cancellation_mode"),
+                    actor=str(body.get("actor", "operator")),
+                    reason=str(body.get("reason", "operator_policy_update")),
+                )
+            except (TypeError, ValueError) as exc:
+                self.json_response(400, {"error": str(exc)})
+                return
+            if result is None:
+                self.json_response(404, {"error": "mission not found", "mission_id": mission_id})
+                return
+            self.json_response(200, {"result": result, "policy": STORE.missions.policy_for_mission(mission_id)})
+            return
+
+        if self.path.startswith("/api/missions/") and self.path.endswith("/budget"):
+            mission_id = self.path.split("/")[3]
+            try:
+                result = STORE.missions.set_budget(
+                    mission_id,
+                    max_tasks=body.get("max_tasks"),
+                    max_retries=body.get("max_retries"),
+                    actor=str(body.get("actor", "operator")),
+                    task_db=ROOT / "data" / "oth.db",
+                )
+            except (TypeError, ValueError) as exc:
+                self.json_response(400, {"error": str(exc)})
+                return
+            if result.get("status") == "missing":
+                self.json_response(404, result)
+                return
+            snapshot = STORE.missions.control_snapshot(mission_id, ROOT / "data" / "oth.db")
+            self.json_response(200, {"result": result, "budget": snapshot.get("budget") if snapshot else None, "control": snapshot})
+            return
+
+        if self.path.startswith("/api/missions/") and self.path.endswith("/escalation"):
+            mission_id = self.path.split("/")[3]
+            current = STORE.missions.get(mission_id)
+            if current is None:
+                self.json_response(404, {"error": "mission not found", "mission_id": mission_id})
+                return
+            try:
+                if body.get("reset"):
+                    warning = 900.0
+                    critical = 300.0
+                else:
+                    warning = body.get(
+                        "warning_before_seconds",
+                        current.get("escalation_warning_seconds", 900.0),
+                    )
+                    critical = body.get(
+                        "critical_before_seconds",
+                        current.get("escalation_critical_seconds", 300.0),
+                    )
+                result = STORE.missions.set_escalation_policy(
+                    mission_id,
+                    warning_before_seconds=warning,
+                    critical_before_seconds=critical,
+                )
+            except (TypeError, ValueError) as exc:
+                self.json_response(400, {"error": str(exc)})
+                return
+            snapshot = STORE.missions.control_snapshot(
+                mission_id,
+                ROOT / "data" / "oth.db",
+            )
+            self.json_response(200, {"result": result, "control": snapshot})
+            return
+
+        if self.path.startswith("/api/attention/") and self.path.endswith("/acknowledge"):
+            attention_id = self.path.split("/")[3]
+            try:
+                result = STORE.missions.acknowledge_attention(
+                    int(attention_id),
+                    acknowledged_by=str(body.get("acknowledged_by", "operator")),
+                )
+            except (TypeError, ValueError) as exc:
+                self.json_response(400, {"error": str(exc)})
+                return
+            status = 200 if result.get("status") != "missing" else 404
+            self.json_response(status, {"result": result})
+            return
+
+        if self.path.startswith("/api/missions/") and self.path.endswith("/control"):
+            mission_id = self.path.split("/")[3]
+            action = str(body.get("action", "")).strip().lower()
+            task_ids = body.get("task_ids")
+            if task_ids is not None and not isinstance(task_ids, list):
+                self.json_response(400, {"error": "task_ids must be a list"})
+                return
+            task_ids = [str(item) for item in task_ids] if task_ids is not None else None
+            kernel = OTHKernel(ROOT)
+            try:
+                if action == "approve":
+                    result = kernel.approve_mission(mission_id, task_ids=task_ids)
+                elif action == "resume":
+                    result = kernel.resume_mission(
+                        mission_id,
+                        task_ids=task_ids,
+                        approve_external=bool(body.get("approve_external", False)),
+                    )
+                elif action == "cancel":
+                    result = kernel.cancel_mission(
+                        mission_id,
+                        task_ids=task_ids,
+                        reason=str(body.get("reason", "operator_cancel")),
+                    )
+                elif action == "refresh":
+                    result = STORE.missions.reconcile(ROOT / "data" / "oth.db")
+                else:
+                    self.json_response(400, {
+                        "error": "unsupported mission control action",
+                        "action": action,
+                        "supported": ["approve", "resume", "cancel", "refresh"],
+                    })
+                    return
+            finally:
+                kernel.close()
+            snapshot = STORE.missions.control_snapshot(mission_id, ROOT / "data" / "oth.db")
+            if snapshot is None:
+                self.json_response(404, {"error": "mission not found", "mission_id": mission_id})
+                return
+            status = 200 if not (isinstance(result, dict) and result.get("status") == "missing") else 404
+            self.json_response(status, {"action": action, "result": result, "control": snapshot})
+            return
+
+        if self.path.startswith("/api/missions/") and self.path.endswith("/resume"):
+            mission_id = self.path.split("/")[3]
+            task_ids = body.get("task_ids")
+            if task_ids is not None and not isinstance(task_ids, list):
+                self.json_response(400, {"error": "task_ids must be a list"})
+                return
+            kernel = OTHKernel(ROOT)
+            try:
+                result = kernel.resume_mission(
+                    mission_id,
+                    task_ids=[str(item) for item in task_ids] if task_ids is not None else None,
+                    approve_external=bool(body.get("approve_external", False)),
+                )
+            finally:
+                kernel.close()
+            status = 200 if result.get("status") != "missing" else 404
+            self.json_response(status, result)
+            return
+
+        if self.path.startswith("/api/missions/") and self.path.endswith("/approve"):
+            mission_id = self.path.split("/")[3]
+            task_ids = body.get("task_ids")
+            if task_ids is not None and not isinstance(task_ids, list):
+                self.json_response(400, {"error": "task_ids must be a list"})
+                return
+            kernel = OTHKernel(ROOT)
+            try:
+                result = kernel.approve_mission(
+                    mission_id,
+                    task_ids=[str(item) for item in task_ids] if task_ids is not None else None,
+                )
+            finally:
+                kernel.close()
+            status = 200 if result.get("status") != "missing" else 404
+            self.json_response(status, result)
+            return
+
+        if self.path == "/api/conversations":
+            conversation_id = str(uuid.uuid4())
+            title = body.get("title") or "New Mission Chat"
+            item = STORE.create_conversation(conversation_id, title)
+            self.json_response(201, item)
+            return
+
+        if self.path.startswith("/api/conversations/") and self.path.endswith("/messages"):
+            conversation_id = self.path.split("/")[3]
+            text = str(body.get("content", "")).strip()
+            if not text:
+                self.json_response(400, {"error": "empty message"})
+                return
+            if not STORE.get_conversation(conversation_id):
+                self.json_response(404, {"error": "conversation not found"})
+                return
+
+            STORE.add_message(conversation_id, "user", text)
+
+            if is_mission(text):
+                mission_text = resolve_mission(conversation_id, text)
+                queued = queue_mission(conversation_id, mission_text)
+                answer = (
+                    "Mission queued into the OTH execution kernel.\n\n"
+                    f"Goal: {queued['goal']}\n"
+                    f"Strategy: {queued['strategy']}\n"
+                    f"Root tasks: {', '.join(queued['root_task_ids'])}\n"
+                    "The OTH daemon will execute the queued graph."
+                )
+                STORE.add_message(
+                    conversation_id,
+                    "assistant",
+                    answer,
+                    {"provider": "oth-kernel", "mission": queued},
+                )
+                self.json_response(200, {
+                    "role": "assistant",
+                    "content": answer,
+                    "provider": "oth-kernel",
+                    "mission": queued,
+                })
+                return
+
+            context = STORE.context_for_model(conversation_id, text, recent=16, retrieved=8, memories=6)
+            messages = [
+                {"role": "system", "content":
+                 "You are the OTH Pilot. The local OTH system is the durable source of truth. "
+                 "Long conversation history is stored outside model context and selectively retrieved. "
+                 "Use durable mission memory and relevant older conversation when supplied. "
+                 "Be concise unless explicitly asked for detail. Never claim an action occurred unless it did."}
+            ]
+            messages.extend(context)
+            answer = call_model(messages)
+            provider = "model"
+            if answer is None:
+                answer = pilot_fallback(text)
+                provider = "pilot-fallback"
+            STORE.add_message(conversation_id, "assistant", answer, {"provider": provider})
+            self.json_response(200, {"role": "assistant", "content": answer, "provider": provider})
+            return
+
+        self.json_response(404, {"error": "route not found"})
+
+def main():
+    host = os.getenv("OTH_CONSOLE_HOST", "127.0.0.1")
+    port = int(os.getenv("OTH_CONSOLE_PORT", "18765"))
+    with console_singleton() as acquired:
+        if not acquired:
+            print("OTH Console already running")
+            return
+        print(f"OTH Console online at http://{host}:{port}")
+        StrictHTTPServer((host, port), Handler).serve_forever()
+
+if __name__ == "__main__":
+    main()

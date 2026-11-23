@@ -1,0 +1,517 @@
+{
+  "defaults": {
+    "department": "ops",
+    "objective": "Execute assigned OTH work safely and return structured results.",
+    "permissions": [
+      "read",
+      "local_execute"
+    ],
+    "memory_scope": "task",
+    "retry": {
+      "max_attempts": 1,
+      "retryable": true
+    },
+    "escalation": {
+      "on": [
+        "approval_required",
+        "repeated_failure",
+        "no_worker"
+      ],
+      "target": "pilot"
+    },
+    "metrics": [
+      "success_rate",
+      "reliability",
+      "latency"
+    ]
+  },
+  "capabilities": {
+    "reasoning": {
+      "department": "research",
+      "risk": "safe",
+      "required_permissions": [
+        "read"
+      ]
+    },
+    "research": {
+      "department": "research",
+      "risk": "safe",
+      "required_permissions": [
+        "read"
+      ]
+    },
+    "engineering": {
+      "department": "engineering",
+      "risk": "local_write",
+      "required_permissions": [
+        "read",
+        "local_execute"
+      ]
+    },
+    "scout": {
+      "department": "research",
+      "risk": "safe",
+      "required_permissions": [
+        "browser_read"
+      ]
+    },
+    "review-mining": {
+      "department": "research",
+      "risk": "safe",
+      "required_permissions": [
+        "browser_read"
+      ]
+    },
+    "social-autonomy": {
+      "department": "ops",
+      "risk": "safe",
+      "required_permissions": [
+        "orchestrate"
+      ]
+    },
+    "social-actions": {
+      "department": "distribution",
+      "risk": "external",
+      "required_permissions": [
+        "external_action"
+      ]
+    },
+    "media-production": {
+      "department": "media",
+      "risk": "local_write",
+      "required_permissions": [
+        "local_execute"
+      ]
+    },
+    "resolve-bridge": {
+      "department": "media",
+      "risk": "local_write",
+      "required_permissions": [
+        "local_execute"
+      ]
+    },
+    "media-transcription": {
+      "department": "media",
+      "risk": "local_write",
+      "required_permissions": [
+        "local_execute"
+      ]
+    }
+  },
+  "workers": {
+    "hermes": {
+      "department": "research",
+      "permissions": [
+        "read",
+        "research"
+      ],
+      "objective": "Collect and validate decision-relevant evidence with traceable outputs."
+    },
+    "scout": {
+      "department": "research",
+      "permissions": [
+        "read",
+        "browser_read",
+        "research"
+      ],
+      "objective": "Collect and validate decision-relevant evidence with traceable outputs."
+    },
+    "review-miner": {
+      "department": "research",
+      "permissions": [
+        "read",
+        "browser_read",
+        "research"
+      ],
+      "objective": "Collect and validate decision-relevant evidence with traceable outputs."
+    },
+    "scout-http": {
+      "department": "research",
+      "permissions": [
+        "read",
+        "browser_read",
+        "research"
+      ],
+      "objective": "Collect and validate decision-relevant evidence with traceable outputs."
+    },
+    "reasoning-local": {
+      "department": "engineering",
+      "permissions": [
+        "read",
+        "local_execute"
+      ],
+      "objective": "Build, compile, provision, and improve reliable automation infrastructure."
+    },
+    "ollama-engineer": {
+      "department": "engineering",
+      "permissions": [
+        "read",
+        "local_execute"
+      ],
+      "objective": "Execute software missions directly through the native OTH tool loop, verify changes, and repair failures."
+    },
+    "opencode-engineer": {
+      "department": "engineering",
+      "permissions": [
+        "read",
+        "local_execute"
+      ],
+      "objective": "Execute software missions directly, run verification, repair failures, and return auditable results."
+    },
+    "engineering-audit-fallback": {
+      "department": "engineering",
+      "permissions": [
+        "read",
+        "local_execute"
+      ],
+      "objective": "Audit and report honestly when the execution-grade engineering provider is unavailable."
+    },
+    "opportunity-analyst-fallback": {
+      "department": "business",
+      "permissions": [
+        "read",
+        "local_execute"
+      ],
+      "objective": "Score market opportunities independently when the primary analyst is unavailable."
+    },
+    "automation-designer-fallback": {
+      "department": "engineering",
+      "permissions": [
+        "read",
+        "local_execute"
+      ],
+      "objective": "Generate a safe blueprint when the primary automation designer is unavailable."
+    },
+    "review-miner-fallback": {
+      "department": "research",
+      "permissions": [
+        "read",
+        "research"
+      ],
+      "capability_grants": {
+        "review-mining": [
+          "browser_read"
+        ]
+      },
+      "objective": "Mine review and complaint evidence from already-collected research when browser review scraping is unavailable."
+    },
+    "social-autonomy": {
+      "department": "ops",
+      "permissions": [
+        "read",
+        "local_execute",
+        "orchestrate"
+      ],
+      "objective": "Coordinate execution, safeguards, health, and operational continuity."
+    },
+    "social-actions": {
+      "department": "distribution",
+      "permissions": [
+        "read",
+        "local_execute",
+        "external_action"
+      ],
+      "objective": "Prepare, schedule, reconcile, and publish approved distribution work within policy."
+    },
+    "browser": {
+      "department": "ops",
+      "objective": "Coordinate execution, safeguards, health, and operational continuity."
+    },
+    "social-market": {
+      "department": "business",
+      "objective": "Turn evidence into qualified opportunities, offers, and executable business decisions."
+    },
+    "social-accounts": {
+      "department": "distribution",
+      "objective": "Prepare, schedule, reconcile, and publish approved distribution work within policy."
+    },
+    "social-optimizer": {
+      "department": "analytics",
+      "objective": "Measure outcomes, detect patterns, and recommend evidence-based optimization."
+    },
+    "social-control": {
+      "department": "ops",
+      "objective": "Coordinate execution, safeguards, health, and operational continuity."
+    },
+    "social-queue": {
+      "department": "distribution",
+      "objective": "Prepare, schedule, reconcile, and publish approved distribution work within policy."
+    },
+    "social-autopilot": {
+      "department": "distribution",
+      "objective": "Prepare, schedule, reconcile, and publish approved distribution work within policy."
+    },
+    "social-leads": {
+      "department": "distribution",
+      "objective": "Prepare, schedule, reconcile, and publish approved distribution work within policy."
+    },
+    "social-content": {
+      "department": "content",
+      "objective": "Turn validated market insight into useful, platform-aware content assets."
+    },
+    "social-planner": {
+      "department": "content",
+      "objective": "Turn validated market insight into useful, platform-aware content assets."
+    },
+    "media-assets": {
+      "department": "media",
+      "objective": "Produce, transform, inspect, and validate media artifacts safely."
+    },
+    "social-editor": {
+      "department": "content",
+      "objective": "Turn validated market insight into useful, platform-aware content assets."
+    },
+    "media-producer": {
+      "department": "media",
+      "objective": "Produce, transform, inspect, and validate media artifacts safely."
+    },
+    "media-ingest": {
+      "department": "media",
+      "objective": "Produce, transform, inspect, and validate media artifacts safely."
+    },
+    "media-qa": {
+      "department": "media",
+      "objective": "Produce, transform, inspect, and validate media artifacts safely."
+    },
+    "media-transcription": {
+      "department": "media",
+      "objective": "Produce, transform, inspect, and validate media artifacts safely."
+    },
+    "resolve-bridge": {
+      "department": "media",
+      "objective": "Produce, transform, inspect, and validate media artifacts safely."
+    },
+    "social-analytics": {
+      "department": "analytics",
+      "objective": "Measure outcomes, detect patterns, and recommend evidence-based optimization."
+    },
+    "opportunity-analyst": {
+      "department": "business",
+      "objective": "Turn evidence into qualified opportunities, offers, and executable business decisions."
+    },
+    "automation-designer": {
+      "department": "engineering",
+      "objective": "Build, compile, provision, and improve reliable automation infrastructure."
+    },
+    "automation-builder": {
+      "department": "engineering",
+      "objective": "Build, compile, provision, and improve reliable automation infrastructure."
+    },
+    "qa-validator": {
+      "department": "ops",
+      "objective": "Coordinate execution, safeguards, health, and operational continuity."
+    },
+    "promotion-gate": {
+      "department": "ops",
+      "objective": "Coordinate execution, safeguards, health, and operational continuity."
+    },
+    "dependency-provisioner": {
+      "department": "engineering",
+      "objective": "Build, compile, provision, and improve reliable automation infrastructure."
+    },
+    "workflow-compiler": {
+      "department": "engineering",
+      "objective": "Build, compile, provision, and improve reliable automation infrastructure."
+    },
+    "automation-builder-fallback": {
+      "department": "engineering",
+      "permissions": [
+        "read",
+        "local_execute"
+      ],
+      "objective": "Build safe automation artifacts independently when the primary builder is unavailable."
+    },
+    "qa-validator-fallback": {
+      "department": "ops",
+      "permissions": [
+        "read",
+        "local_execute"
+      ],
+      "objective": "Perform provider-independent structural QA when the primary validator is unavailable."
+    },
+    "promotion-gate-fallback": {
+      "department": "ops",
+      "permissions": [
+        "read",
+        "local_execute"
+      ],
+      "objective": "Apply conservative promotion decisions independently when the primary gate is unavailable."
+    },
+    "dependency-provisioner-fallback": {
+      "department": "engineering",
+      "permissions": [
+        "read",
+        "local_execute"
+      ],
+      "objective": "Produce allowlisted dependency plans independently without mutating the environment."
+    },
+    "workflow-compiler-fallback": {
+      "department": "engineering",
+      "permissions": [
+        "read",
+        "local_execute"
+      ],
+      "objective": "Compile provider-neutral workflow drafts independently when the primary compiler is unavailable."
+    },
+    "media-qa-fallback": {
+      "department": "media",
+      "permissions": [
+        "read",
+        "local_execute"
+      ],
+      "objective": "Perform filesystem-structural media QA when ffprobe-backed QA is unavailable."
+    },
+    "media-transcription-fallback": {
+      "department": "media",
+      "permissions": [
+        "read",
+        "local_execute"
+      ],
+      "objective": "Import transcript sidecars or supplied transcript text when speech recognition is unavailable."
+    },
+    "social-analytics-fallback": {
+      "department": "analytics",
+      "permissions": [
+        "read",
+        "local_execute"
+      ],
+      "objective": "Normalize locally supplied metrics when live providers are unavailable."
+    },
+    "social-optimization-fallback": {
+      "department": "analytics",
+      "permissions": [
+        "read",
+        "local_execute"
+      ],
+      "objective": "Rank recorded experiments and suggest controlled variants independently."
+    },
+    "social-content-fallback": {
+      "department": "content",
+      "permissions": [
+        "read",
+        "local_execute"
+      ],
+      "objective": "Draft platform-safe copy independently when the primary content engine is unavailable."
+    },
+    "social-planner-fallback": {
+      "department": "content",
+      "permissions": [
+        "read",
+        "local_execute"
+      ],
+      "objective": "Assign provider-neutral schedule slots without bypassing approval."
+    },
+    "social-editor-fallback": {
+      "department": "content",
+      "permissions": [
+        "read",
+        "local_execute"
+      ],
+      "objective": "Create production-ready editorial briefs independently."
+    },
+    "media-assets-fallback": {
+      "department": "media",
+      "permissions": [
+        "read",
+        "local_execute"
+      ],
+      "objective": "Inspect and register media independently when the primary asset toolchain is unavailable."
+    },
+    "media-ingest-fallback": {
+      "department": "media",
+      "permissions": [
+        "read",
+        "local_execute"
+      ],
+      "objective": "Track media sources without silently performing network acquisition."
+    },
+    "media-production-fallback": {
+      "department": "media",
+      "permissions": [
+        "read",
+        "local_execute"
+      ],
+      "objective": "Generate provider-neutral production manifests independently of the primary renderer."
+    },
+    "social-queue-fallback": {
+      "department": "distribution",
+      "permissions": [
+        "read",
+        "local_execute"
+      ],
+      "objective": "Reconcile and plan social queue work without publishing externally."
+    },
+    "social-actions-fallback": {
+      "department": "distribution",
+      "permissions": [
+        "read",
+        "local_execute"
+      ],
+      "objective": "Prepare and diagnose social actions safely without external provider calls."
+    },
+    "social-accounts-fallback": {
+      "department": "distribution",
+      "permissions": [
+        "read",
+        "local_execute"
+      ],
+      "objective": "Provide local account onboarding/status without initiating external OAuth."
+    },
+    "social-autonomy-fallback": {
+      "department": "ops",
+      "permissions": [
+        "read",
+        "local_execute"
+      ],
+      "objective": "Run provider-independent observe-and-plan autonomy cycles."
+    },
+    "social-autopilot-fallback": {
+      "department": "distribution",
+      "permissions": [
+        "read",
+        "local_execute"
+      ],
+      "objective": "Turn supplied opportunities into approval-gated campaign plans."
+    },
+    "social-control-fallback": {
+      "department": "ops",
+      "permissions": [
+        "read",
+        "local_execute"
+      ],
+      "objective": "Provide local operational snapshots and human-attention signals."
+    },
+    "social-leads-fallback": {
+      "department": "distribution",
+      "permissions": [
+        "read",
+        "local_execute"
+      ],
+      "objective": "Ingest, qualify, and summarize leads locally without external outreach."
+    },
+    "social-market-fallback": {
+      "department": "business",
+      "permissions": [
+        "read",
+        "local_execute"
+      ],
+      "objective": "Generate an inbound-first social strategy and workflow blueprint independently."
+    },
+    "browser-http-fallback": {
+      "department": "ops",
+      "permissions": [
+        "read",
+        "local_execute"
+      ],
+      "objective": "Read public web content through direct HTTP when browser UI automation is unavailable; never pretend to perform UI actions."
+    },
+    "resolve-bridge-fallback": {
+      "department": "media",
+      "permissions": [
+        "read",
+        "local_execute"
+      ],
+      "objective": "Prepare provider-neutral Resolve project/render plans without claiming an external render occurred."
+    }
+  }
+}

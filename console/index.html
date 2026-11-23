@@ -1,0 +1,345 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width,initial-scale=1">
+<title>OTH Console</title>
+<style>
+:root{font-family:Inter,system-ui,sans-serif;background:#0b0d10;color:#eef2f5}
+*{box-sizing:border-box}body{margin:0;height:100vh;display:grid;grid-template-columns:260px 1fr;background:#0b0d10}
+aside{border-right:1px solid #20252b;padding:16px;overflow:auto}
+main{display:grid;grid-template-rows:auto 1fr auto;min-width:0}
+header{padding:16px 20px;border-bottom:1px solid #20252b;display:flex;justify-content:space-between}
+#messages{padding:24px;overflow:auto;max-width:1000px;width:100%;margin:auto}
+.msg{padding:14px 16px;border:1px solid #20252b;border-radius:12px;margin:12px 0;white-space:pre-wrap;line-height:1.45}
+.user{background:#11161b}.assistant{background:#0f1419}
+button{background:#151a20;color:#eef2f5;border:1px solid #2a3139;border-radius:9px;padding:9px 11px;cursor:pointer}
+button:hover{background:#1c232b}.conv{width:100%;text-align:left;margin:6px 0}
+textarea{width:100%;resize:none;background:#0f1419;color:#eef2f5;border:1px solid #29313a;border-radius:12px;padding:14px;font:inherit}
+footer{padding:16px 20px;border-top:1px solid #20252b}.send{margin-top:8px;display:flex;justify-content:flex-end}
+.small{font-size:12px;color:#89939e}.title{font-weight:700}.status{font-size:12px;color:#8de1b0}
+
+.control{border-bottom:1px solid #20252b;padding:14px 20px;background:#0d1116}
+.control[hidden]{display:none}.control-head{display:flex;justify-content:space-between;gap:16px;align-items:flex-start}
+.control-goal{font-weight:700}.control-status{font-size:12px;text-transform:uppercase;letter-spacing:.08em}
+.control-grid{display:grid;grid-template-columns:repeat(5,minmax(80px,1fr));gap:8px;margin-top:10px}
+.metric{padding:8px 10px;border:1px solid #242b33;border-radius:9px;background:#10151b}.metric b{display:block;font-size:16px}.metric span{font-size:11px;color:#89939e}
+.progress{margin-top:10px}.progress-track{height:8px;border-radius:999px;background:#171d24;overflow:hidden}.progress-fill{height:100%;background:#8de1b0;width:0;transition:width .2s}.progress-meta{display:flex;justify-content:space-between;margin-top:5px;font-size:11px;color:#89939e}
+.control-actions{display:flex;flex-wrap:wrap;gap:8px;margin-top:10px}.control-actions button[disabled]{opacity:.4;cursor:not-allowed}
+.timeline{margin-top:10px;display:grid;gap:6px;max-height:180px;overflow:auto}
+.timeline-item{display:flex;gap:8px;align-items:baseline;font-size:12px;padding:7px 9px;border:1px solid #20262e;border-radius:8px}
+.timeline-item .kind{font-weight:700}.timeline-item .time{color:#697581;white-space:nowrap}
+.notice{margin-top:8px;padding:8px 10px;border:1px solid #3a2f1f;border-radius:8px;background:#15120e;color:#d8c08b;font-size:12px}
+.attention{margin-top:10px;display:grid;gap:6px}.attention-item{padding:9px 10px;border:1px solid #2a3139;border-radius:9px;background:#11161b}.attention-line{display:flex;justify-content:space-between;gap:8px}.attention-title{font-weight:700}.attention-severity{font-size:10px;text-transform:uppercase;letter-spacing:.08em}.attention-detail{font-size:12px;color:#a8b1b9;margin-top:4px}.attention-ack{margin-top:6px}
+@media(max-width:900px){.control-grid{grid-template-columns:repeat(3,minmax(80px,1fr))}}
+</style>
+</head>
+<body>
+<aside>
+  <div class="title">OVER THE HORIZON</div>
+  <div class="small" style="margin:6px 0 14px">Persistent Mission Console</div>
+  <button id="new">+ New mission chat</button>
+  <div id="convs"></div>
+</aside>
+<main>
+<header><div><b>OTH Console</b><div class="small">Chat is an interface. OTH state lives on your machine.</div></div><div id="status" class="status">checking…</div></header>
+<section id="control" class="control" hidden>
+  <div class="control-head">
+    <div>
+      <div id="missionGoal" class="control-goal"></div>
+      <div id="missionMeta" class="small"></div>
+    </div>
+    <div id="missionStatus" class="control-status status"></div>
+  </div>
+  <div id="missionMetrics" class="control-grid"></div>
+  <div id="missionBudget" class="small" style="margin-top:8px"></div>
+  <div id="missionIntegrity" class="small" style="margin-top:6px"></div>
+  <div id="missionProgress" class="progress">
+    <div class="progress-track"><div id="missionProgressFill" class="progress-fill"></div></div>
+    <div class="progress-meta"><span id="missionProgressLabel">0% complete</span><span id="missionEta">ETA unavailable</span></div>
+  </div>
+  <div id="missionActions" class="control-actions"></div>
+  <div id="missionAttention" class="attention"></div>
+  <div id="missionNotice"></div>
+  <div id="missionTimeline" class="timeline"></div>
+  <div class="small" style="margin-top:10px">Forensic replay</div>
+  <div id="missionReplayMeta" class="small"></div>
+  <div id="missionReplay" class="timeline"></div>
+  <div class="small" style="margin-top:10px">Operator audit ledger</div>
+  <div id="missionAudit" class="timeline"></div>
+</section>
+<section id="messages"></section>
+<footer>
+<textarea id="input" rows="3" placeholder="Give OTH a goal…"></textarea>
+<div class="send"><button id="send">Send</button></div>
+</footer>
+</main>
+<script>
+let current=null;
+let currentMissionId=null;
+let controlPoll=null;
+
+const $=s=>document.querySelector(s);
+const sleep=ms=>new Promise(resolve=>setTimeout(resolve,ms));
+
+async function api(url,opt){
+  const response=await fetch(url,opt);
+  return response.json();
+}
+
+async function loadConvs(){
+  const r=await api('/api/conversations');
+  const box=$('#convs'); box.innerHTML='';
+  r.items.forEach(c=>{
+    const b=document.createElement('button');
+    b.className='conv';
+    b.textContent=c.title;
+    b.onclick=()=>openConv(c.id);
+    box.appendChild(b);
+  });
+}
+
+function addMsg(role,text){
+  const d=document.createElement('div');
+  d.className='msg '+role;
+  d.textContent=text;
+  $('#messages').appendChild(d);
+  return d;
+}
+
+function stopControlPolling(){
+  if(controlPoll){clearTimeout(controlPoll);controlPoll=null;}
+}
+
+function metric(label,value){
+  const d=document.createElement('div');
+  d.className='metric';
+  const b=document.createElement('b'); b.textContent=value;
+  const s=document.createElement('span'); s.textContent=label;
+  d.append(b,s);
+  return d;
+}
+
+function renderControl(data){
+  const panel=$('#control');
+  if(!data || !data.mission){panel.hidden=true;return;}
+  panel.hidden=false;
+  const m=data.mission, g=data.graph||{}, counts=g.counts||{}, deadline=data.deadline, escalation=data.escalation, budget=data.budget, progress=data.progress;
+  $('#missionGoal').textContent=m.goal || 'Mission';
+  const deadlineText=deadline
+    ? ' · deadline '+deadline.at+' · '+deadline.status
+    : ' · no deadline';
+  const escalationText=escalation
+    ? ' · escalation '+escalation.level+' ('+Math.max(0, escalation.seconds_to_deadline).toFixed(0)+'s)'
+    : '';
+  $('#missionMeta').textContent='Mission '+m.id+' · latest task '+(m.latest_task_id||'none')+deadlineText+escalationText;
+  $('#missionStatus').textContent=m.status+(deadline?.status==='overdue'?' · OVERDUE':'')+(escalation?.level==='critical'?' · CRITICAL':'')+(escalation?.level==='warning'?' · WARNING':'');
+  $('#status').textContent='Mission '+m.status+' · '+(counts.total||0)+' tasks';
+  const pct=Math.max(0,Math.min(100,Number(progress?.percent||0)));
+  $('#missionProgressFill').style.width=pct+'%';
+  $('#missionProgressLabel').textContent=pct.toFixed(1)+'% complete · '+(progress?.completed||0)+'/'+(progress?.total||0)+' terminal';
+  const budgetBox=$('#missionBudget');
+  budgetBox.textContent=budget ? ('Budget '+budget.task_count+'/'+budget.max_tasks+' tasks · '+budget.retry_count+'/'+budget.max_retries+' retries · '+budget.status) : 'Budget unavailable';
+  const eta=progress?.eta_seconds;
+  $('#missionEta').textContent=eta==null?'ETA unavailable':('ETA ~'+Math.max(0,eta/60).toFixed(1)+' min');
+
+  const attentionBox=$('#missionAttention'); attentionBox.innerHTML='';
+  (data.attention||[]).filter(item=>item.status==='open').slice().reverse().forEach(item=>{
+    const card=document.createElement('div'); card.className='attention-item';
+    const line=document.createElement('div'); line.className='attention-line';
+    const title=document.createElement('span'); title.className='attention-title'; title.textContent=item.title;
+    const sev=document.createElement('span'); sev.className='attention-severity'; sev.textContent=item.severity;
+    line.append(title,sev);
+    const detail=document.createElement('div'); detail.className='attention-detail'; detail.textContent=item.detail;
+    const ack=document.createElement('button'); ack.className='attention-ack'; ack.textContent='Acknowledge';
+    ack.onclick=async()=>{
+      await api('/api/attention/'+item.id+'/acknowledge',{
+        method:'POST',
+        headers:{'Content-Type':'application/json'},
+        body:JSON.stringify({acknowledged_by:'operator'})
+      });
+      await refreshMissionControl(currentMissionId);
+    };
+    card.append(line,detail,ack);
+    attentionBox.appendChild(card);
+  });
+
+  const metrics=$('#missionMetrics'); metrics.innerHTML='';
+  [['Total',counts.total||0],['Queued',counts.queued||0],['Running',counts.running||0],['Blocked',counts.blocked||0],['Failed',counts.failed||0],['Cancelled',counts.cancelled||0]].forEach(([k,v])=>metrics.appendChild(metric(k,v)));
+
+  const actions=$('#missionActions'); actions.innerHTML='';
+  (data.actions||[]).filter(item=>item.enabled).forEach(item=>{
+    const b=document.createElement('button');
+    b.textContent=item.action==='approve'?'Approve blocked':item.action==='resume'?'Resume failed':item.action==='cancel'?'Cancel active':'Refresh';
+    b.onclick=()=>{
+      if(item.action==='cancel' && !window.confirm('Cancel the active tasks in this mission? Running tasks receive a graceful cancellation request.')) return;
+      runMissionAction(item.action);
+    };
+    actions.appendChild(b);
+  });
+
+  const notice=$('#missionNotice'); notice.innerHTML='';
+  const timeline=$('#missionTimeline'); timeline.innerHTML='';
+  const replayBox=$('#missionReplay'); replayBox.innerHTML='';
+  $('#missionReplayMeta').textContent='Loading forensic replay…';
+  const auditBox=$('#missionAudit'); auditBox.innerHTML='';
+  (data.audit||[]).slice(-6).reverse().forEach(item=>{
+    const row=document.createElement('div'); row.className='timeline-item';
+    const action=document.createElement('span'); action.className='kind'; action.textContent=item.action;
+    const actor=document.createElement('span'); actor.textContent=item.actor;
+    const result=document.createElement('span'); result.textContent=item.result;
+    const hash=document.createElement('span'); hash.className='time'; hash.textContent=(item.entry_hash||'').slice(0,10);
+    row.append(action,actor,result,hash); auditBox.appendChild(row);
+  });
+  const items=(data.timeline||[]).slice(-8).reverse();
+  items.forEach(item=>{
+    const row=document.createElement('div'); row.className='timeline-item';
+    const kind=document.createElement('span'); kind.className='kind'; kind.textContent=item.kind;
+    const task=document.createElement('span'); task.textContent=item.task_id ? item.task_id.slice(0,8) : 'mission';
+    const time=document.createElement('span'); time.className='time'; time.textContent=item.created_at||'';
+    row.append(kind,task,time); timeline.appendChild(row);
+  });
+}
+
+async function loadMissionReplay(missionId){
+  if(!missionId)return null;
+  const replay=await api('/api/missions/'+missionId+'/replay');
+  if(replay.error)return null;
+  const box=$('#missionReplay'); box.innerHTML='';
+  $('#missionReplayMeta').textContent='Replay '+replay.timeline_count+' timeline events + '+replay.audit_count+' audit decisions · integrity '+(replay.audit_integrity?.valid?'valid':'BROKEN');
+  (replay.replay||[]).slice(-8).reverse().forEach(item=>{
+    const row=document.createElement('div'); row.className='timeline-item';
+    const seq=document.createElement('span'); seq.className='kind'; seq.textContent='#'+item.sequence;
+    const kind=document.createElement('span'); kind.textContent=item.kind;
+    const source=document.createElement('span'); source.textContent=item.source;
+    const time=document.createElement('span'); time.className='time'; time.textContent=item.created_at||'';
+    row.append(seq,kind,source,time); box.appendChild(row);
+  });
+  return replay;
+}
+
+async function refreshMissionControl(missionId){
+  if(!missionId)return null;
+  const data=await api('/api/missions/'+missionId+'/control');
+  if(data.error){return null;}
+  currentMissionId=missionId;
+  renderControl(data);
+  loadMissionReplay(missionId);
+  return data;
+}
+
+async function runMissionAction(action, options={}){
+  if(!currentMissionId)return;
+  const body={action,...options};
+  const data=await api('/api/missions/'+currentMissionId+'/control',{
+    method:'POST',
+    headers:{'Content-Type':'application/json'},
+    body:JSON.stringify(body)
+  });
+  if(data.control)renderControl(data.control);
+
+  const result=data.result||{};
+  if(action==='resume' && result.blocked?.length){
+    const notice=$('#missionNotice');
+    notice.innerHTML='';
+    const row=document.createElement('div'); row.className='notice';
+    row.textContent=result.blocked.length+' failed task(s) remain approval-gated.';
+    const approve=document.createElement('button');
+    approve.textContent='Resume blocked with operator approval';
+    approve.onclick=()=>runMissionAction('resume',{
+      task_ids:result.blocked.map(item=>item.task_id),
+      approve_external:true
+    });
+    row.append(' ',approve);
+    notice.appendChild(row);
+  }
+}
+
+async function loadMissionForConversation(conversationId){
+  const r=await api('/api/conversations/'+conversationId+'/mission');
+  if(r.items?.length){
+    currentMissionId=r.items[0].id;
+    await refreshMissionControl(currentMissionId);
+  }else{
+    currentMissionId=null;
+    $('#control').hidden=true;
+  }
+}
+
+async function watchMission(missionId){
+  stopControlPolling();
+  const started=Date.now();
+  async function tick(){
+    const data=await refreshMissionControl(missionId);
+    if(!data || Date.now()-started>=30*60*1000)return;
+    const status=data.mission?.status;
+    if(['succeeded','failed','cancelled'].includes(status))return;
+    controlPoll=setTimeout(tick,1500);
+  }
+  tick();
+}
+
+async function openConv(id){
+  stopControlPolling();
+  current=id;
+  const r=await api('/api/conversations/'+id+'/messages');
+  const box=$('#messages'); box.innerHTML='';
+  r.items.forEach(m=>addMsg(m.role,m.content));
+  box.scrollTop=box.scrollHeight;
+  await loadMissionForConversation(id);
+}
+
+async function ensureConv(){
+  if(current)return;
+  const r=await api('/api/conversations',{
+    method:'POST',
+    headers:{'Content-Type':'application/json'},
+    body:JSON.stringify({title:'OTH Mission'})
+  });
+  current=r.id;
+  await loadConvs();
+}
+
+async function send(){
+  const input=$('#input');
+  const text=input.value.trim();
+  if(!text)return;
+  await ensureConv();
+  addMsg('user',text);
+  input.value='';
+  const r=await api('/api/conversations/'+current+'/messages',{
+    method:'POST',
+    headers:{'Content-Type':'application/json'},
+    body:JSON.stringify({content:text})
+  });
+  addMsg('assistant',r.content);
+  $('#messages').scrollTop=$('#messages').scrollHeight;
+  if(r.provider==='oth-kernel' && r.mission?.mission_id){
+    await refreshMissionControl(r.mission.mission_id);
+    watchMission(r.mission.mission_id);
+  }
+}
+
+$('#send').onclick=send;
+$('#input').addEventListener('keydown',e=>{
+  if(e.key==='Enter'&&!e.shiftKey){e.preventDefault();send();}
+});
+$('#new').onclick=async()=>{
+  stopControlPolling();
+  current=null;
+  currentMissionId=null;
+  $('#messages').innerHTML='';
+  $('#control').hidden=true;
+  await ensureConv();
+};
+
+(async()=>{
+  const s=await api('/api/status');
+  $('#status').textContent=s.console+' · '+s.stats.messages+' stored messages';
+  await loadConvs();
+  const r=await api('/api/conversations');
+  if(r.items.length)await openConv(r.items[0].id);
+})();
+</script>
+</body>
+</html>

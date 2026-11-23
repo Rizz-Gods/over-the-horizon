@@ -1,0 +1,811 @@
+{
+  "agents": [
+    {
+      "id": "hermes",
+      "name": "Hermes Agent",
+      "capabilities": [
+        "reasoning",
+        "research"
+      ],
+      "status": "available",
+      "metadata": {
+        "command": "hermes",
+        "oneshot_flag": "-z"
+      }
+    },
+    {
+      "id": "reasoning-local",
+      "name": "Local Reasoning Fallback",
+      "capabilities": [
+        "reasoning"
+      ],
+      "status": "available",
+      "metadata": {
+        "mode": "local-reasoning",
+        "priority": 28
+      }
+    },
+    {
+      "id": "review-miner-fallback",
+      "name": "Review Miner Fallback",
+      "capabilities": [
+        "review-mining"
+      ],
+      "status": "available",
+      "metadata": {
+        "mode": "review-mining-fallback",
+        "priority": 30
+      }
+    },
+    {
+      "id": "automation-designer-fallback",
+      "name": "Automation Designer Fallback",
+      "capabilities": [
+        "automation-design"
+      ],
+      "status": "available",
+      "metadata": {
+        "mode": "automation-design-fallback",
+        "priority": 35
+      }
+    },
+    {
+      "id": "opportunity-analyst-fallback",
+      "name": "Opportunity Analyst Fallback",
+      "capabilities": [
+        "opportunity-analysis"
+      ],
+      "status": "available",
+      "metadata": {
+        "mode": "analysis-fallback",
+        "priority": 35
+      }
+    },
+    {
+      "id": "scout-http",
+      "name": "HTTP Market Scout",
+      "capabilities": [
+        "scout",
+        "research"
+      ],
+      "status": "available",
+      "metadata": {
+        "mode": "scout-http",
+        "command": "curl.exe",
+        "timeout": 30,
+        "priority": 52
+      }
+    },
+    {
+      "id": "browser",
+      "name": "Agent Browser",
+      "capabilities": [
+        "browser"
+      ],
+      "status": "available",
+      "metadata": {
+        "command": "agent-browser.cmd",
+        "mode": "browser",
+        "session": "oth",
+        "browser_executable": "chrome.exe",
+        "browser_profile": "data/browser_profiles/oth",
+        "priority": 40
+      }
+    },
+    {
+      "id": "scout",
+      "name": "Market Scout",
+      "capabilities": [
+        "scout"
+      ],
+      "status": "available",
+      "metadata": {
+        "mode": "scout",
+        "command": "agent-browser.cmd",
+        "session": "oth-scout",
+        "browser_executable": "chrome.exe",
+        "browser_profile": "data/browser_profiles/scout",
+        "priority": 60
+      }
+    },
+    {
+      "id": "social-market",
+      "name": "Social Market Engine",
+      "capabilities": [
+        "social-market"
+      ],
+      "status": "available",
+      "metadata": {
+        "mode": "social-market",
+        "priority": 68
+      }
+    },
+    {
+      "id": "social-accounts",
+      "name": "Social Account Manager",
+      "capabilities": [
+        "social-accounts"
+      ],
+      "status": "available",
+      "metadata": {
+        "mode": "social-accounts",
+        "priority": 72
+      }
+    },
+    {
+      "id": "social-optimizer",
+      "name": "Social Optimizer",
+      "capabilities": [
+        "social-optimization"
+      ],
+      "status": "available",
+      "metadata": {
+        "mode": "social-optimization",
+        "priority": 70
+      }
+    },
+    {
+      "id": "social-control",
+      "name": "Social Control",
+      "capabilities": [
+        "social-control"
+      ],
+      "status": "available",
+      "metadata": {
+        "mode": "social-control",
+        "priority": 78
+      }
+    },
+    {
+      "id": "social-queue",
+      "name": "Social Queue Manager",
+      "capabilities": [
+        "social-queue"
+      ],
+      "status": "available",
+      "metadata": {
+        "mode": "social-queue",
+        "priority": 76
+      }
+    },
+    {
+      "id": "social-autopilot",
+      "name": "Social Autopilot",
+      "capabilities": [
+        "social-autopilot"
+      ],
+      "status": "available",
+      "metadata": {
+        "mode": "social-autopilot",
+        "priority": 74
+      }
+    },
+    {
+      "id": "social-leads",
+      "name": "Social Lead Engine",
+      "capabilities": [
+        "social-leads"
+      ],
+      "status": "available",
+      "metadata": {
+        "mode": "social-leads",
+        "priority": 71
+      }
+    },
+    {
+      "id": "social-content",
+      "name": "Social Content Engine",
+      "capabilities": [
+        "social-content"
+      ],
+      "status": "available",
+      "metadata": {
+        "mode": "social-content",
+        "priority": 73
+      }
+    },
+    {
+      "id": "social-planner",
+      "name": "Social Planner",
+      "capabilities": [
+        "social-planner"
+      ],
+      "status": "available",
+      "metadata": {
+        "mode": "social-planner",
+        "priority": 66
+      }
+    },
+    {
+      "id": "media-assets",
+      "name": "Media Asset Manager",
+      "capabilities": [
+        "media-assets"
+      ],
+      "status": "available",
+      "metadata": {
+        "mode": "media-assets",
+        "priority": 67
+      }
+    },
+    {
+      "id": "social-editor",
+      "name": "Social Editorial Director",
+      "capabilities": [
+        "social-editor"
+      ],
+      "status": "available",
+      "metadata": {
+        "mode": "social-editor",
+        "priority": 80,
+        "role": "creative_strategy_and_editing_direction"
+      }
+    },
+    {
+      "id": "media-producer",
+      "name": "Media Production Director",
+      "capabilities": [
+        "media-production"
+      ],
+      "status": "available",
+      "metadata": {
+        "mode": "media-production",
+        "priority": 82,
+        "role": "timeline_editing_render_strategy"
+      }
+    },
+    {
+      "id": "media-ingest",
+      "name": "Media Source Ingest",
+      "capabilities": [
+        "media-ingest"
+      ],
+      "status": "available",
+      "metadata": {
+        "mode": "media-ingest",
+        "priority": 65,
+        "role": "source_acquisition_and_provenance"
+      }
+    },
+    {
+      "id": "media-qa",
+      "name": "Media QA",
+      "capabilities": [
+        "media-qa"
+      ],
+      "status": "available",
+      "metadata": {
+        "mode": "media-qa",
+        "priority": 76,
+        "role": "render_validation_and_publish_safety"
+      }
+    },
+    {
+      "id": "media-transcription",
+      "name": "Media Transcription",
+      "capabilities": [
+        "media-transcription"
+      ],
+      "status": "available",
+      "metadata": {
+        "mode": "media-transcription",
+        "priority": 73,
+        "role": "speech_to_text_and_timing"
+      }
+    },
+    {
+      "id": "resolve-bridge",
+      "name": "DaVinci Resolve Bridge",
+      "capabilities": [
+        "resolve-bridge"
+      ],
+      "status": "available",
+      "metadata": {
+        "mode": "resolve-bridge",
+        "priority": 79,
+        "role": "editor_execution_and_render"
+      }
+    },
+    {
+      "id": "social-autonomy",
+      "name": "Social Autonomy Director",
+      "capabilities": [
+        "social-autonomy"
+      ],
+      "status": "available",
+      "metadata": {
+        "mode": "social-autonomy",
+        "priority": 88,
+        "role": "pilot_intent_and_autonomous_orchestration"
+      }
+    },
+    {
+      "id": "social-analytics",
+      "name": "Social Analytics",
+      "capabilities": [
+        "social-analytics"
+      ],
+      "status": "available",
+      "metadata": {
+        "mode": "social-analytics",
+        "priority": 69
+      }
+    },
+    {
+      "id": "social-actions",
+      "name": "Social Action Bus",
+      "capabilities": [
+        "social-actions"
+      ],
+      "status": "available",
+      "metadata": {
+        "mode": "social-actions",
+        "priority": 75
+      }
+    },
+    {
+      "id": "opportunity-analyst",
+      "name": "Opportunity Analyst",
+      "capabilities": [
+        "opportunity-analysis"
+      ],
+      "status": "available",
+      "metadata": {
+        "mode": "analysis",
+        "priority": 60
+      }
+    },
+    {
+      "id": "review-miner",
+      "name": "Review Miner",
+      "capabilities": [
+        "review-mining"
+      ],
+      "status": "available",
+      "metadata": {
+        "mode": "review-mining",
+        "command": "agent-browser.cmd",
+        "session": "oth-review",
+        "browser_executable": "chrome.exe",
+        "browser_profile": "data/browser_profiles/review",
+        "priority": 65
+      }
+    },
+    {
+      "id": "automation-designer",
+      "name": "Automation Designer",
+      "capabilities": [
+        "automation-design"
+      ],
+      "status": "available",
+      "metadata": {
+        "mode": "automation-design",
+        "priority": 60
+      }
+    },
+    {
+      "id": "automation-builder",
+      "name": "Automation Builder",
+      "capabilities": [
+        "automation-build"
+      ],
+      "status": "available",
+      "metadata": {
+        "mode": "automation-build",
+        "priority": 55
+      }
+    },
+    {
+      "id": "qa-validator",
+      "name": "QA Validator",
+      "capabilities": [
+        "qa-validation"
+      ],
+      "status": "available",
+      "metadata": {
+        "mode": "qa",
+        "priority": 50
+      }
+    },
+    {
+      "id": "promotion-gate",
+      "name": "Promotion Gate",
+      "capabilities": [
+        "promotion-gate"
+      ],
+      "status": "available",
+      "metadata": {
+        "mode": "promotion",
+        "priority": 45
+      }
+    },
+    {
+      "id": "dependency-provisioner",
+      "name": "Dependency Provisioner",
+      "capabilities": [
+        "dependency-provision"
+      ],
+      "status": "available",
+      "metadata": {
+        "mode": "provisioning",
+        "priority": 48
+      }
+    },
+    {
+      "id": "workflow-compiler",
+      "name": "Workflow Compiler",
+      "capabilities": [
+        "workflow-compile"
+      ],
+      "status": "available",
+      "metadata": {
+        "mode": "compiler",
+        "priority": 52
+      }
+    },
+    {
+      "id": "automation-builder-fallback",
+      "name": "Automation Builder Fallback",
+      "capabilities": [
+        "automation-build"
+      ],
+      "status": "available",
+      "metadata": {
+        "mode": "automation-build-fallback",
+        "priority": 53,
+        "role": "independent_resilience_fallback"
+      }
+    },
+    {
+      "id": "qa-validator-fallback",
+      "name": "QA Validator Fallback",
+      "capabilities": [
+        "qa-validation"
+      ],
+      "status": "available",
+      "metadata": {
+        "mode": "qa-fallback",
+        "priority": 49,
+        "role": "independent_resilience_fallback"
+      }
+    },
+    {
+      "id": "promotion-gate-fallback",
+      "name": "Promotion Gate Fallback",
+      "capabilities": [
+        "promotion-gate"
+      ],
+      "status": "available",
+      "metadata": {
+        "mode": "promotion-fallback",
+        "priority": 44,
+        "role": "independent_resilience_fallback"
+      }
+    },
+    {
+      "id": "dependency-provisioner-fallback",
+      "name": "Dependency Provisioner Fallback",
+      "capabilities": [
+        "dependency-provision"
+      ],
+      "status": "available",
+      "metadata": {
+        "mode": "provisioning-fallback",
+        "priority": 47,
+        "role": "independent_resilience_fallback"
+      }
+    },
+    {
+      "id": "workflow-compiler-fallback",
+      "name": "Workflow Compiler Fallback",
+      "capabilities": [
+        "workflow-compile"
+      ],
+      "status": "available",
+      "metadata": {
+        "mode": "compiler-fallback",
+        "priority": 51,
+        "role": "independent_resilience_fallback"
+      }
+    },
+    {
+      "id": "media-qa-fallback",
+      "name": "Media QA Fallback",
+      "capabilities": [
+        "media-qa"
+      ],
+      "status": "available",
+      "metadata": {
+        "mode": "media-qa-fallback",
+        "priority": 75,
+        "role": "independent_resilience_fallback"
+      }
+    },
+    {
+      "id": "media-transcription-fallback",
+      "name": "Media Transcription Fallback",
+      "capabilities": [
+        "media-transcription"
+      ],
+      "status": "available",
+      "metadata": {
+        "mode": "media-transcription-fallback",
+        "priority": 72,
+        "role": "independent_resilience_fallback"
+      }
+    },
+    {
+      "id": "social-analytics-fallback",
+      "name": "Social Analytics Fallback",
+      "capabilities": [
+        "social-analytics"
+      ],
+      "status": "available",
+      "metadata": {
+        "mode": "social-analytics-fallback",
+        "priority": 68,
+        "role": "independent_resilience_fallback"
+      }
+    },
+    {
+      "id": "social-optimization-fallback",
+      "name": "Social Optimization Fallback",
+      "capabilities": [
+        "social-optimization"
+      ],
+      "status": "available",
+      "metadata": {
+        "mode": "social-optimization-fallback",
+        "priority": 69,
+        "role": "independent_resilience_fallback"
+      }
+    },
+    {
+      "id": "social-content-fallback",
+      "name": "Social Content Fallback",
+      "capabilities": [
+        "social-content"
+      ],
+      "status": "available",
+      "metadata": {
+        "mode": "social-content-fallback",
+        "priority": 72,
+        "role": "independent_resilience_fallback"
+      }
+    },
+    {
+      "id": "social-planner-fallback",
+      "name": "Social Planner Fallback",
+      "capabilities": [
+        "social-planner"
+      ],
+      "status": "available",
+      "metadata": {
+        "mode": "social-planner-fallback",
+        "priority": 65,
+        "role": "independent_resilience_fallback"
+      }
+    },
+    {
+      "id": "social-editor-fallback",
+      "name": "Social Editorial Fallback",
+      "capabilities": [
+        "social-editor"
+      ],
+      "status": "available",
+      "metadata": {
+        "mode": "social-editor-fallback",
+        "priority": 79,
+        "role": "independent_resilience_fallback"
+      }
+    },
+    {
+      "id": "media-assets-fallback",
+      "name": "Media Asset Fallback",
+      "capabilities": [
+        "media-assets"
+      ],
+      "status": "available",
+      "metadata": {
+        "mode": "media-assets-fallback",
+        "priority": 66,
+        "role": "independent_resilience_fallback"
+      }
+    },
+    {
+      "id": "media-ingest-fallback",
+      "name": "Media Ingest Fallback",
+      "capabilities": [
+        "media-ingest"
+      ],
+      "status": "available",
+      "metadata": {
+        "mode": "media-ingest-fallback",
+        "priority": 64,
+        "role": "independent_resilience_fallback"
+      }
+    },
+    {
+      "id": "media-production-fallback",
+      "name": "Media Production Fallback",
+      "capabilities": [
+        "media-production"
+      ],
+      "status": "available",
+      "metadata": {
+        "mode": "media-production-fallback",
+        "priority": 81,
+        "role": "independent_resilience_fallback"
+      }
+    },
+    {
+      "id": "social-queue-fallback",
+      "name": "Social Queue Fallback",
+      "capabilities": [
+        "social-queue"
+      ],
+      "status": "available",
+      "metadata": {
+        "mode": "social-queue-fallback",
+        "priority": 75,
+        "role": "independent_resilience_fallback"
+      }
+    },
+    {
+      "id": "social-actions-fallback",
+      "name": "Social Actions Fallback",
+      "capabilities": [
+        "social-actions"
+      ],
+      "status": "available",
+      "metadata": {
+        "mode": "social-actions-fallback",
+        "priority": 74,
+        "role": "independent_resilience_fallback"
+      }
+    },
+    {
+      "id": "social-accounts-fallback",
+      "name": "Social Accounts Fallback",
+      "capabilities": [
+        "social-accounts"
+      ],
+      "status": "available",
+      "metadata": {
+        "mode": "social-accounts-fallback",
+        "priority": 60,
+        "role": "independent_resilience_fallback"
+      }
+    },
+    {
+      "id": "social-autonomy-fallback",
+      "name": "Social Autonomy Fallback",
+      "capabilities": [
+        "social-autonomy"
+      ],
+      "status": "available",
+      "metadata": {
+        "mode": "social-autonomy-fallback",
+        "priority": 82,
+        "role": "independent_resilience_fallback"
+      }
+    },
+    {
+      "id": "social-autopilot-fallback",
+      "name": "Social Autopilot Fallback",
+      "capabilities": [
+        "social-autopilot"
+      ],
+      "status": "available",
+      "metadata": {
+        "mode": "social-autopilot-fallback",
+        "priority": 80,
+        "role": "independent_resilience_fallback"
+      }
+    },
+    {
+      "id": "social-control-fallback",
+      "name": "Social Control Fallback",
+      "capabilities": [
+        "social-control"
+      ],
+      "status": "available",
+      "metadata": {
+        "mode": "social-control-fallback",
+        "priority": 78,
+        "role": "independent_resilience_fallback"
+      }
+    },
+    {
+      "id": "social-leads-fallback",
+      "name": "Social Leads Fallback",
+      "capabilities": [
+        "social-leads"
+      ],
+      "status": "available",
+      "metadata": {
+        "mode": "social-leads-fallback",
+        "priority": 67,
+        "role": "independent_resilience_fallback"
+      }
+    },
+    {
+      "id": "social-market-fallback",
+      "name": "Social Market Fallback",
+      "capabilities": [
+        "social-market"
+      ],
+      "status": "available",
+      "metadata": {
+        "mode": "social-market-fallback",
+        "priority": 58,
+        "role": "independent_resilience_fallback"
+      }
+    },
+    {
+      "id": "ollama-engineer",
+      "name": "Native Ollama Engineering Worker",
+      "capabilities": [
+        "engineering"
+      ],
+      "status": "available",
+      "metadata": {
+        "mode": "engineering-ollama",
+        "priority": 98,
+        "role": "native_local_execution_grade_software_engineering"
+      }
+    },
+    {
+      "id": "opencode-engineer",
+      "name": "OpenCode Engineering Worker",
+      "capabilities": [
+        "engineering"
+      ],
+      "status": "available",
+      "metadata": {
+        "mode": "engineering-opencode",
+        "priority": 95,
+        "role": "execution_grade_software_engineering"
+      }
+    },
+    {
+      "id": "engineering-audit-fallback",
+      "name": "Engineering Audit Fallback",
+      "capabilities": [
+        "engineering"
+      ],
+      "status": "available",
+      "metadata": {
+        "mode": "engineering-fallback",
+        "priority": 25,
+        "role": "degraded_provider_independent_fallback"
+      }
+    },
+    {
+      "id": "browser-http-fallback",
+      "name": "Browser HTTP Fallback",
+      "capabilities": [
+        "browser"
+      ],
+      "status": "available",
+      "metadata": {
+        "mode": "browser-http-fallback",
+        "priority": 30,
+        "role": "degraded_provider_independent_fallback"
+      }
+    },
+    {
+      "id": "resolve-bridge-fallback",
+      "name": "Resolve Bridge Fallback",
+      "capabilities": [
+        "resolve-bridge"
+      ],
+      "status": "available",
+      "metadata": {
+        "mode": "resolve-bridge-fallback",
+        "priority": 32,
+        "role": "degraded_provider_independent_fallback"
+      }
+    }
+  ]
+}

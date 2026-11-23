@@ -1,0 +1,114 @@
+{
+  "schedules": [
+    {
+      "id": "market-scout-6h",
+      "enabled": true,
+      "interval_seconds": 21600,
+      "capability": "scout",
+      "action": "scan",
+      "priority": 70,
+      "payload": {
+        "queries": [
+          "small business owners software complaints manual spreadsheets",
+          "site:reddit.com/r/smallbusiness scheduling invoicing software complaint alternative",
+          "site:reddit.com/r/entrepreneur looking for software business problem",
+          "software alternative too expensive small business"
+        ],
+        "risk": "safe",
+        "max_retries": 1,
+        "next": [
+          {
+            "capability": "review-mining",
+            "action": "mine",
+            "priority": 68
+          }
+        ]
+      }
+    },
+    {
+      "id": "social-autopilot-6h",
+      "enabled": true,
+      "interval_seconds": 21600,
+      "capability": "social-autopilot",
+      "action": "run",
+      "priority": 66,
+      "payload": {
+        "risk": "safe",
+        "min_score": 65,
+        "max_new_campaigns": 1,
+        "platforms": [
+          "linkedin",
+          "x",
+          "youtube",
+          "instagram"
+        ]
+      }
+    },
+    {
+      "id": "social-control-1h",
+      "enabled": true,
+      "interval_seconds": 3600,
+      "capability": "social-control",
+      "action": "status",
+      "priority": 60,
+      "payload": {
+        "risk": "safe"
+      }
+    },
+    {
+      "id": "social-queue-5m",
+      "enabled": true,
+      "interval_seconds": 300,
+      "capability": "social-queue",
+      "action": "reconcile",
+      "priority": 76,
+      "payload": {
+        "risk": "safe"
+      }
+    },
+    {
+      "id": "social-doctor-6h",
+      "enabled": true,
+      "interval_seconds": 21600,
+      "capability": "social-actions",
+      "action": "doctor",
+      "priority": 62,
+      "payload": {
+        "risk": "safe"
+      }
+    },
+    {
+      "id": "social-analytics-1h",
+      "enabled": true,
+      "interval_seconds": 3600,
+      "capability": "social-analytics",
+      "action": "sync",
+      "priority": 64,
+      "payload": {
+        "risk": "safe"
+      }
+    },
+    {
+      "id": "social-planner-30m",
+      "enabled": true,
+      "interval_seconds": 1800,
+      "capability": "social-planner",
+      "action": "plan",
+      "priority": 63,
+      "payload": {
+        "risk": "safe"
+      }
+    },
+    {
+      "id": "social-autonomy-10m",
+      "enabled": true,
+      "interval_seconds": 600,
+      "capability": "social-autonomy",
+      "action": "tick",
+      "priority": 82,
+      "payload": {
+        "risk": "safe"
+      }
+    }
+  ]
+}
