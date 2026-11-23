@@ -1,5 +1,7 @@
 # Over The Horizon (OTH)
 
+[![Tests](https://github.com/Rizz-Gods/over-the-horizon/actions/workflows/tests.yml/badge.svg)](https://github.com/Rizz-Gods/over-the-horizon/actions/workflows/tests.yml)
+
 **A local-first, policy-gated Python runtime for coordinating agents, tasks, and tools.**
 
 Over The Horizon places a task kernel between agent adapters and the tools they can invoke. The runtime models work as persisted tasks, applies risk-aware permission checks, routes execution to interchangeable workers, and records mission state so operators can inspect and recover work.
